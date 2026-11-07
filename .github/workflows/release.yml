@@ -36,7 +36,7 @@ jobs:
       - name: Publish only Features that name a release
         run: |
           for dir in src/*/; do
-            if [ -f "$dir/install-nuc.sh" ] && [ ! -f "$dir/VERSION" ]; then
+            if [ ! -f "$dir/VERSION" ]; then
               echo "$(basename "$dir") names no release yet; removed from this publication"
               rm -rf "$dir"
             fi
