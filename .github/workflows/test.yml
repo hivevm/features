@@ -1,7 +1,8 @@
 name: Test
 
 # Validates every Feature against the specification and installs each one that names a release in
-# the base images below, running its test under test/<id>/.
+# the base images below, running its test under test/<id>/. A Feature whose test/<id>/images lists
+# the images it serves is tested in those alone.
 
 on:
   pull_request:
@@ -49,6 +50,10 @@ jobs:
             id="$(basename "$dir")"
             if [ ! -f "$dir/VERSION" ]; then
               echo "$id names no release yet; not tested"
+              continue
+            fi
+            if [ -f "test/$id/images" ] && ! grep -qxF "$IMAGE" "test/$id/images"; then
+              echo "$id does not serve $IMAGE; not tested there"
               continue
             fi
             npx --yes @devcontainers/cli@0.89.0 features test --features "$id" --base-image "$IMAGE" .
