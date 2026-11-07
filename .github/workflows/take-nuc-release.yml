@@ -1,0 +1,61 @@
+name: Take a nuc release
+
+# Weekly, or by hand with a version: takes the latest release of hivevm/nuc-tools, or the one
+# named, into the Feature nuc after verifying its checksums and attestations
+# (scripts/take-nuc-release.sh), and opens a pull request a human merges. Merging it publishes the
+# Feature (release.yml). A pull request opened with the workflow token starts no workflow of its
+# own, so its tests run when a human closes and reopens it or pushes to it.
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "The release X.Y.Z of hivevm/nuc-tools; the latest when empty"
+        required: false
+
+permissions: {}
+
+concurrency:
+  group: take-nuc-release
+  cancel-in-progress: false
+
+jobs:
+  take:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # the branch of the pull request
+      pull-requests: write # the pull request
+      attestations: read # gh attestation verify
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Take the release
+        id: take
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WANTED: ${{ inputs.version }}
+        run: echo "version=$(bash scripts/take-nuc-release.sh "$WANTED")" >> "$GITHUB_OUTPUT"
+      - name: Open the pull request
+        if: steps.take.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.take.outputs.version }}
+        run: |
+          branch="take/nuc-v$VERSION"
+          if gh pr list --head "$branch" --state open --json number --jq '.[0].number' | grep -q .; then
+            echo "a pull request for nuc v$VERSION is open already"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add src/nuc/SHA256SUMS src/nuc/VERSION src/nuc/devcontainer-feature.json
+          git commit -m "feat(nuc): take nuc v$VERSION"
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          git -c http.extraHeader="Authorization: Basic $auth" push origin "$branch"
+          gh pr create --head "$branch" --title "feat(nuc): take nuc v$VERSION" \
+            --body "Takes nuc v$VERSION from https://github.com/hivevm/nuc-tools/releases/tag/v$VERSION: every binary matched its checksum and its build-provenance attestation, signed by the release workflow of hivevm/nuc-tools, verified."
