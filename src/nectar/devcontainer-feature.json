@@ -1,6 +1,6 @@
 {
   "id": "nectar",
-  "version": "0.0.0",
+  "version": "0.1.1",
   "name": "nectar",
   "description": "Installs nectar, which turns Markdown into a website and a PDF, from the release of hivevm/nectar this Feature version names, verified against its checksums.",
   "documentationURL": "https://github.com/hivevm/features/tree/main/src/nectar",
