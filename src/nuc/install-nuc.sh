@@ -1,8 +1,8 @@
 #!/bin/sh
 #
 # Installs the nuc of one release, verified against the checksums the caller carries
-# (ADR-0017). The GitHub Action and the Dev Container Feature run it with the
-# SHA256SUMS and the VERSION their release commit holds; a binary whose checksum differs is
+# (ADR-0025). The GitHub Action runs it with the SHA256SUMS and the VERSION its release commit
+# holds, and hivevm/features carries a copy for its Feature; a binary whose checksum differs is
 # deleted and the installation fails.
 #
 # POSIX sh, curl or wget, and sha256sum or shasum, so that it runs in a container without bash.
@@ -23,8 +23,10 @@ if [ ! -f "$sums" ] || [ ! -f "$version_file" ]; then
   fail "no SHA256SUMS or VERSION beside the installer — this commit is no release commit; reference the major tag vN of a release"
 fi
 version="$(tr -d '[:space:]' < "$version_file")"
-printf '%s\n' "$version" | grep -Eqx '(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)' \
-  || fail "VERSION holds '$version', not X.Y.Z"
+grep -Eqx '(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)' << EOF ||
+$version
+EOF
+  fail "VERSION holds '$version', not X.Y.Z"
 
 target="${NUC_TARGET:-}"
 if [ -z "$target" ]; then
